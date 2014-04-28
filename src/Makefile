@@ -2,20 +2,20 @@ ROOT    := $(abspath ..)
 include $(ROOT)/config.mk
 
 LIBKEVLAR := $(shell rustc --crate-file-name libkevlar/lib.rs)
-KEVLARD := kevlard
+TEST    := test
 
 .PHONY: all clean
 
-all: $(LIBKEVLAR) $(KEVLARD)
+all: $(LIBKEVLAR) $(TEST)
 
 clean:
 	rm -f *.d
 	rm -f $(LIBKEVLAR)
-	rm -f $(KEVLARD)
+	rm -f $(TEST)
 
 -include $(LIBKEVLAR).d
 $(LIBKEVLAR): libkevlar/lib.rs
 	$(RUSTC) $(RUST_FLAGS) --dep-info $@.d --out-dir . $<
 
-$(KEVLARD): kevlard.rs $(LIBKEVLAR)
+$(TEST): test.rs $(LIBKEVLAR)
 	$(RUSTC) $(RUST_FLAGS) $<

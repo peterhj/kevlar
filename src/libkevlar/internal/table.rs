@@ -21,7 +21,11 @@ impl Table {
   }
 
   pub fn contains(&self, key: &~[u8]) -> bool {
-    self.map.contains_key(key)
+    if !self.map.contains_key(key) {
+      return false;
+    }
+    let entry = self.map.get(key);
+    entry.value_size != 0
   }
 
   pub fn get<'a>(&'a self, key: &~[u8]) -> &'a TableEntry {
@@ -38,7 +42,13 @@ impl Table {
     self.map.insert(key, entry);
   }
 
-  pub fn delete(&mut self, txnid: TxnId, key: &~[u8], value_pos: u32) {
-    self.map.remove(key);
+  pub fn delete(&mut self, txnid: TxnId, key: ~[u8], value_pos: u32) {
+    let entry = TableEntry{
+      file_id: 0,
+      value_pos: value_pos,
+      value_size: 0,
+      txnid: txnid,
+    };
+    self.map.insert(key, entry);
   }
 }

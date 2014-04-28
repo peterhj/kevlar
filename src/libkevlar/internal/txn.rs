@@ -1,16 +1,12 @@
-//use collections::hashmap::{HashMap};
-
 pub type TxnId = u64;
 
 pub struct Txn {
-  id: TxnId,
   kvs: Vec<(~[u8], ~[u8])>,
 }
 
 impl Txn {
-  pub fn new(txnid: TxnId) -> Txn {
+  pub fn new() -> Txn {
     Txn{
-      id: txnid,
       kvs: Vec::new(),
     }
   }
