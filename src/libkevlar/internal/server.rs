@@ -1,6 +1,9 @@
-use internal::log::{Log, LogHeader};
+use internal::log::{
+  LOG_FLAG_COMMIT, LOG_FLAG_DELETE, LOG_FLAG_WRITE,
+  Log, LogEntryHeader,
+};
 use internal::table::{Table};
-use internal::txn::{Txn, TxnId};
+use internal::txn::{Delete, Put, Txn, TxnId};
 
 use std::cmp::{max};
 use std::mem::{size_of};
@@ -18,23 +21,25 @@ impl Server {
       table: Table::new(),
       txnid_counter: 0,
     };
-    server.init();
+    server.replay_log();
     server
   }
 
-  fn init(&mut self) {
-    enum TxnAction {
+  fn replay_log(&mut self) {
+    enum LogTxnOp {
       Put(~[u8], u32, u32),
       Delete(~[u8], u32),
     }
     let mut prev_seen_txnid: TxnId = 0;
     let mut prev_good_txnid: TxnId = 0;
-    let mut curr_txn: Option<Vec<TxnAction>> = Some(Vec::new());
+    let mut curr_txn: Option<Vec<LogTxnOp>> = Some(Vec::new());
     loop {
+      if self.log.eof(0) {
+        break;
+      }
       let p = self.log.get_cursor(0);
       let header = self.log.get_header(0, p);
       // TODO truncate log on bad checksum.
-      assert!(header.check == 0);
       //if header.check != ... {
       //}
       if header.txnid < prev_seen_txnid {
@@ -47,7 +52,7 @@ impl Server {
           curr_txn.get_mut_ref().clear();
         }
         if header.key_size > 0 {
-          let key_pos = p + size_of::<LogHeader>() as u32;
+          let key_pos = p + size_of::<LogEntryHeader>() as u32;
           let key = self.log.get_buffer(0, key_pos, header.key_size);
           let value_pos = key_pos + header.key_size;
           if header.value_size > 0 {
@@ -57,7 +62,9 @@ impl Server {
             curr_txn.get_mut_ref().push(Delete(key, value_pos));
           }
         } else {
-          assert!(header.value_size == 0);
+          // TODO rather than accept an empty value, instead encode the number
+          // of ops in the txn as a u32.
+          //assert!(header.value_size == 0);
           assert!(header.txnid == prev_seen_txnid);
           for x in curr_txn.take_unwrap().move_iter() {
             match x {
@@ -75,9 +82,6 @@ impl Server {
         prev_seen_txnid = header.txnid;
       }
       self.txnid_counter = max(self.txnid_counter, header.txnid);
-      if !self.log.eof(0) {
-        break;
-      }
     }
   }
 
@@ -98,12 +102,19 @@ impl Server {
 
   pub fn commit(&mut self, txn: Txn) {
     let txnid = self.allocate_txnid();
-    for kv in txn.kvs.move_iter() {
-      let (key, value) = kv;
-      let value_pos = self.log.append(txnid, key, value);
-      let value_size = value.len() as u32;
-      self.table.put(txnid, key, value_pos, value_size); // FIXME
+    for op in txn.ops.move_iter() {
+      match op {
+        Put(key, value) => {
+          let value_pos = self.log.append(txnid, LOG_FLAG_WRITE, key, value);
+          let value_size = value.len() as u32;
+          self.table.put(txnid, key, value_pos, value_size);
+        },
+        Delete(key) => {
+          let value_pos = self.log.append(txnid, LOG_FLAG_DELETE, key, []);
+          self.table.delete(txnid, key, value_pos);
+        },
+      }
     }
-    self.log.commit(txnid);
+    self.log.append(txnid, LOG_FLAG_COMMIT, [], []);
   }
 }
