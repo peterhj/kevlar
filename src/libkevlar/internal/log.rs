@@ -1,5 +1,5 @@
 use cast::{coerce_from_bytes, coerce_to_bytes};
-use internal::txn::{TxnId};
+use internal::server::{KvId};
 
 use std::io::{Open, SeekEnd, SeekSet, ReadWrite};
 use std::io::fs::{File, stat};
@@ -12,7 +12,7 @@ pub struct LogEntryHeader {
   flags: u32,
   key_size: u32,
   value_size: u32,
-  txnid: TxnId,
+  kvid: KvId,
 }
 
 fn fletcher64_consume(c0: u32, c1: u32, bytes: &[u8]) -> (u32, u32) {
@@ -35,7 +35,7 @@ fn fletcher64_consume(c0: u32, c1: u32, bytes: &[u8]) -> (u32, u32) {
 }
 
 impl LogEntryHeader {
-  pub fn new(txnid: TxnId, flags: u32, key: &[u8], value: &[u8]) -> LogEntryHeader {
+  pub fn new(kvid: KvId, flags: u32, key: &[u8], value: &[u8]) -> LogEntryHeader {
     let key_size = key.len() as u32;
     let value_size = value.len() as u32;
     let header = LogEntryHeader{
@@ -44,7 +44,7 @@ impl LogEntryHeader {
       flags: flags,
       key_size: key_size,
       value_size: value_size,
-      txnid: txnid,
+      kvid: kvid,
     };
     /*let (c0, c1) = {
       let header_bytes = coerce_to_bytes(&header);
@@ -84,9 +84,10 @@ impl LogEntryHeader {
   }
 }
 
-pub static LOG_FLAG_COMMIT: u32 = 0x01;
-pub static LOG_FLAG_WRITE: u32  = 0x02;
-pub static LOG_FLAG_DELETE: u32 = 0x03;
+pub static LOG_FLAG_WRITE: u32  = 0x01;
+pub static LOG_FLAG_DELETE: u32 = 0x02;
+pub static LOG_FLAG_PAD_8: u32  = 0x0100;
+pub static LOG_FLAG_PAD_64: u32 = 0x0200;
 
 pub struct Log {
   prefix: Path,
@@ -163,10 +164,10 @@ impl Log {
     buffer
   }
 
-  pub fn append(&mut self, txnid: TxnId, flags: u32, key: &[u8], value: &[u8]) -> u32 {
+  pub fn append(&mut self, kvid: KvId, flags: u32, key: &[u8], value: &[u8]) -> u32 {
     let file_id = self.curr_file_id;
     self.set_cursor_end(file_id);
-    let header = LogEntryHeader::new(txnid, flags, key, value);
+    let header = LogEntryHeader::new(kvid, flags, key, value);
     let header_bytes = coerce_to_bytes(&header);
     let _ = self.log_file.write(header_bytes);
     let _ = self.log_file.write(key);

@@ -1,4 +1,4 @@
-use internal::txn::{TxnId};
+use internal::server::{KvId};
 
 use collections::hashmap::{HashMap};
 
@@ -6,7 +6,7 @@ pub struct TableEntry {
   file_id: u32,
   value_pos: u32,
   value_size: u32,
-  txnid: TxnId,
+  kvid: KvId,
 }
 
 pub struct Table {
@@ -32,22 +32,22 @@ impl Table {
     self.map.get(key)
   }
 
-  pub fn put(&mut self, txnid: TxnId, key: ~[u8], value_pos: u32, value_size: u32) {
+  pub fn put(&mut self, kvid: KvId, key: ~[u8], value_pos: u32, value_size: u32) {
     let entry = TableEntry{
       file_id: 0,
       value_pos: value_pos,
       value_size: value_size,
-      txnid: txnid,
+      kvid: kvid,
     };
     self.map.insert(key, entry);
   }
 
-  pub fn delete(&mut self, txnid: TxnId, key: ~[u8], value_pos: u32) {
+  pub fn delete(&mut self, kvid: KvId, key: ~[u8], value_pos: u32) {
     let entry = TableEntry{
       file_id: 0,
       value_pos: value_pos,
       value_size: 0,
-      txnid: txnid,
+      kvid: kvid,
     };
     self.map.insert(key, entry);
   }
