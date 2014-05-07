@@ -1,11 +1,29 @@
-use cast::{coerce_from_bytes, coerce_to_bytes};
-use internal::server::{KvId};
+use cast::{coerce_from_bytes, coerce_as_bytes};
+use internal::db::{KvId};
 
 use std::io::{Open, SeekEnd, SeekSet, ReadWrite};
 use std::io::fs::{File, stat};
 use std::mem::{size_of};
 
+pub static LOG_OP_PUT: u32      = 1 << 0;
+pub static LOG_OP_DELETE: u32   = 1 << 1;
+pub static LOG_MASK_OP: u32     = LOG_OP_PUT | LOG_OP_DELETE;
+
+pub static LOG_BLOCK_NONE: u32  = 1 << 31;
+pub static LOG_BLOCK_8: u32     = 1 << 30;
+pub static LOG_BLOCK_64: u32    = 1 << 29;
+pub static LOG_BLOCK_4K: u32    = 1 << 28;
+pub static LOG_BLOCK_64K: u32   = 1 << 27;
+pub static LOG_BLOCK_2M: u32    = 1 << 26;
+pub static LOG_MASK_BLOCK: u32  = LOG_BLOCK_NONE |
+                                  LOG_BLOCK_8 |
+                                  LOG_BLOCK_64 |
+                                  LOG_BLOCK_4K |
+                                  LOG_BLOCK_64K |
+                                  LOG_BLOCK_2M;
+
 #[packed]
+#[deriving(Clone)]
 pub struct LogEntryHeader {
   check0: u32,
   check1: u32,
@@ -47,7 +65,7 @@ impl LogEntryHeader {
       kvid: kvid,
     };
     /*let (c0, c1) = {
-      let header_bytes = coerce_to_bytes(&header);
+      let header_bytes = coerce_as_bytes(&header);
       let mut c0: u32 = 0;
       let mut c1: u32 = 0;
       match fletcher64_consume(c0, c1, header_bytes.slice_from(8)) {
@@ -83,11 +101,6 @@ impl LogEntryHeader {
     true
   }
 }
-
-pub static LOG_FLAG_WRITE: u32  = 0x01;
-pub static LOG_FLAG_DELETE: u32 = 0x02;
-pub static LOG_FLAG_PAD_8: u32  = 0x0100;
-pub static LOG_FLAG_PAD_64: u32 = 0x0200;
 
 pub struct Log {
   prefix: Path,
@@ -151,8 +164,10 @@ impl Log {
       Ok(b) => b,
       Err(e) => fail!("I/O error while reading log header: {}", e),
     };
-    let header: &LogEntryHeader = coerce_from_bytes(bytes);
-    *header
+    unsafe {
+      let header: &LogEntryHeader = coerce_from_bytes(bytes);
+      header.clone()
+    }
   }
 
   pub fn get_buffer(&mut self, file_id: u32, buffer_pos: u32, buffer_size: u32) -> ~[u8] {
@@ -168,8 +183,10 @@ impl Log {
     let file_id = self.curr_file_id;
     self.set_cursor_end(file_id);
     let header = LogEntryHeader::new(kvid, flags, key, value);
-    let header_bytes = coerce_to_bytes(&header);
-    let _ = self.log_file.write(header_bytes);
+    unsafe {
+      let header_bytes = coerce_as_bytes(&header);
+      let _ = self.log_file.write(header_bytes);
+    }
     let _ = self.log_file.write(key);
     let value_pos = self.get_cursor(file_id);
     let _ = self.log_file.write(value);

@@ -1,4 +1,4 @@
-use internal::server::{KvId};
+use internal::db::{KvId};
 
 use collections::hashmap::{HashMap};
 

@@ -2,24 +2,20 @@ use std::cast::{transmute};
 use std::mem::{size_of};
 use std::raw::{Slice};
 
-pub fn coerce_from_bytes<'a, T>(bytes: &'a [u8]) -> &'a T {
+pub unsafe fn coerce_from_bytes<'a, T>(bytes: &'a [u8]) -> &'a T {
   assert!(size_of::<T>() == bytes.len());
-  unsafe {
-    let slice: Slice<u8> = transmute(bytes);
-    let ptr = slice.data;
-    let val: &'a T = transmute(ptr);
-    val
-  }
+  let slice: Slice<u8> = transmute(bytes);
+  let ptr = slice.data;
+  let val: &'a T = transmute(ptr);
+  val
 }
 
-pub fn coerce_to_bytes<'a, T>(val: &'a T) -> &'a [u8] {
-  unsafe {
-    let ptr: *u8 = transmute(val);
-    let slice = Slice::<u8>{
-      data: ptr,
-      len: size_of::<T>(),
-    };
-    let bytes: &[u8] = transmute(slice);
-    bytes
-  }
+pub unsafe fn coerce_as_bytes<'a, T>(val: &'a T) -> &'a [u8] {
+  let ptr: *u8 = transmute(val);
+  let slice = Slice::<u8>{
+    data: ptr,
+    len: size_of::<T>(),
+  };
+  let bytes: &[u8] = transmute(slice);
+  bytes
 }

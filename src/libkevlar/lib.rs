@@ -9,6 +9,6 @@ extern crate collections;
 pub mod cast;
 pub mod client;
 pub mod config;
-pub mod server;
+pub mod db;
 
 mod internal;

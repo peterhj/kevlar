@@ -1,14 +1,15 @@
 extern crate kevlar;
 
-use kevlar::server::{KevlarServer};
+use kevlar::db::{KevlarDb};
 
 fn main() {
   println!("Hello, world!");
-  let mut server = KevlarServer::new();
-  server.put_str(~"foo", ~"bar");
-  server.put_str(~"hello", ~"world");
-  server.put_str(~"asdf", ~"qwerty");
-  println!("{}", server.get_str(~"foo"));
-  println!("{}", server.get_str(~"hello"));
-  println!("{}", server.get_str(~"asdf"));
+  let mut db = KevlarDb::new();
+  db.put_str(~"foo", ~"bar");
+  db.put_str(~"hello", ~"world");
+  db.put_str(~"asdf", ~"qwerty");
+  db.delete(~"asdf");
+  println!("{}", db.get_str(~"foo"));
+  println!("{}", db.get_str(~"hello"));
+  //println!("{}", db.get_str(~"asdf"));
 }

@@ -1,15 +1,15 @@
-use internal::server::{Server};
+use internal::db::{Db};
 
 use std::str::{from_utf8_lossy};
 
-pub struct KevlarServer {
-  _inner: Server,
+pub struct KevlarDb {
+  _inner: Db,
 }
 
-impl KevlarServer {
-  pub fn new() -> KevlarServer {
-    KevlarServer{
-      _inner: Server::new(),
+impl KevlarDb {
+  pub fn new() -> KevlarDb {
+    KevlarDb{
+      _inner: Db::new(),
     }
   }
 
@@ -38,7 +38,11 @@ impl KevlarServer {
     self._inner.put(key.into_bytes(), value.into_bytes());
   }
 
-  pub fn delete(&mut self, key: ~[u8]) {
+  pub fn raw_delete(&mut self, key: ~[u8]) {
     self._inner.delete(key);
+  }
+
+  pub fn delete(&mut self, key: ~str) {
+    self._inner.delete(key.into_bytes());
   }
 }
